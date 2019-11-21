@@ -1,7 +1,6 @@
 import os
 import requests
-from auth import getAccessToken
-from filters import disallowed_images, disallowed_services
+from auth.auth import getAccessToken
 
 # Get Token from Secret enviroment variable URI
 access_token = requests.get(os.environ.get("TOKEN_URI")).text
@@ -9,8 +8,15 @@ access_token = requests.get(os.environ.get("TOKEN_URI")).text
 # Get project ID from enviroment variable
 project_id = os.environ.get("PROJECT_ID")
 
-# Change this if your Cloud Run services are in a different location
-region = "us-central1"
+# Get region from enviroment variable
+region = os.environ.get("REGION", "us-central1")
+
+# Filters to help skip services by images or names
+# Get GCR Images to Skip from enviroment variable
+disallowed_images = os.environ.get("DISALLOWED_IMAGES", [])
+
+# Get Services Name to Skip from enviroment variable
+disallowed_services = os.environ.get("DISALLOWED_SERVICES", [])
 
 # Request header using access token
 auth_header = {
@@ -28,7 +34,7 @@ def cloudrun_warmer(request):
 
         if 'items' in services:
             for service in services['items']:
-                if 'client.knative.dev/user-image' in service['metadata']['annotations'] and service['metadata']['name'] not in disallowed_service and service['metadata']['annotations']['client.knative.dev/user-image'] not in disallowed_images:
+                if service['metadata']['name'] not in disallowed_services and service['metadata']['annotations']['client.knative.dev/user-image'] not in disallowed_images:
                     try:
                         # Make request to Cloud Run service domain with a timeout of 5secs
                         status = requests.get(
